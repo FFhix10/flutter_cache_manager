@@ -1,8 +1,8 @@
 package io.flutter.plugins;
 
 import io.flutter.plugin.common.PluginRegistry;
+import me.haog.mmkv.MmkvPlugin;
 import io.flutter.plugins.pathprovider.PathProviderPlugin;
-import io.flutter.plugins.sharedpreferences.SharedPreferencesPlugin;
 
 /**
  * Generated file. Do not edit.
@@ -12,8 +12,8 @@ public final class GeneratedPluginRegistrant {
     if (alreadyRegisteredWith(registry)) {
       return;
     }
+    MmkvPlugin.registerWith(registry.registrarFor("me.haog.mmkv.MmkvPlugin"));
     PathProviderPlugin.registerWith(registry.registrarFor("io.flutter.plugins.pathprovider.PathProviderPlugin"));
-    SharedPreferencesPlugin.registerWith(registry.registrarFor("io.flutter.plugins.sharedpreferences.SharedPreferencesPlugin"));
   }
 
   private static boolean alreadyRegisteredWith(PluginRegistry registry) {

@@ -8,7 +8,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:mmkv_plugin/mmkv_plugin.dart';
 import 'package:synchronized/synchronized.dart';
 
 import 'src/cache_object.dart';
@@ -25,22 +25,20 @@ class CacheManager {
   static CacheManager _instance;
 
   static Future<CacheManager> getInstance() async {
-    if (_instance == null) {
-      await _lock.synchronized(() async {
-        if (_instance == null) {
-          // keep local instance till it is fully initialized
-          var newInstance = new CacheManager._();
-          await newInstance._init();
-          _instance = newInstance;
-        }
-      });
-    }
+    await _lock.synchronized(() async {
+      if (_instance == null) {
+        // keep local instance till it is fully initialized
+        var newInstance = new CacheManager._();
+        await newInstance._init();
+        _instance = newInstance;
+      }
+    });
     return _instance;
   }
 
   CacheManager._();
 
-  SharedPreferences _prefs;
+  Mmkv _mmkv;
   Map<String, CacheObject> _cacheData;
   DateTime lastCacheClean;
 
@@ -48,7 +46,7 @@ class CacheManager {
 
   ///Shared preferences is used to keep track of the information about the files
   Future _init() async {
-    _prefs = await SharedPreferences.getInstance();
+    _mmkv = await Mmkv.defaultInstance();
     _getSavedCacheDataFromPreferences();
     _getLastCleanTimestampFromPreferences();
   }
@@ -57,10 +55,10 @@ class CacheManager {
   bool _shouldStoreDataAgain = false;
   Lock _storeLock = new Lock();
 
-  _getSavedCacheDataFromPreferences() {
-    //get saved cache data from shared prefs
-    var jsonCacheString = _prefs.getString(_keyCacheData);
+  _getSavedCacheDataFromPreferences() async {
     _cacheData = new Map();
+    //get saved cache data from shared prefs
+    var jsonCacheString = await _mmkv.getString(_keyCacheData);
     if (jsonCacheString != null) {
       Map jsonCache = const JsonDecoder().convert(jsonCacheString);
       jsonCache.forEach((key, data) {
@@ -112,21 +110,22 @@ class CacheManager {
       });
     });
 
-    _prefs.setString(_keyCacheData, const JsonEncoder().convert(json));
+    await _mmkv.putString(_keyCacheData, const JsonEncoder().convert(json));
 
     if (await _shouldSaveAgain()) {
       await _saveDataInPrefs();
     }
   }
 
-  _getLastCleanTimestampFromPreferences() {
+  _getLastCleanTimestampFromPreferences() async {
     // Get data about when the last clean action has been performed
-    var cleanMillis = _prefs.getInt(_keyCacheCleanDate);
+    var cleanMillis = await _mmkv.getInt(_keyCacheCleanDate);
     if (cleanMillis != null) {
       lastCacheClean = new DateTime.fromMillisecondsSinceEpoch(cleanMillis);
     } else {
       lastCacheClean = new DateTime.now();
-      _prefs.setInt(_keyCacheCleanDate, lastCacheClean.millisecondsSinceEpoch);
+      await _mmkv.putInt(
+          _keyCacheCleanDate, lastCacheClean.millisecondsSinceEpoch);
     }
   }
 
@@ -141,7 +140,7 @@ class CacheManager {
         await _shrinkLargeCache();
 
         lastCacheClean = new DateTime.now();
-        _prefs.setInt(
+        await _mmkv.putInt(
             _keyCacheCleanDate, lastCacheClean.millisecondsSinceEpoch);
       });
     }
